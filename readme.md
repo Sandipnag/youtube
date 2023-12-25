@@ -20,7 +20,7 @@
             "secure_url": "https://res.cloudinary.com/dyad3bbxr/image/upload/v1703492221/eousmcdzgxy5svf68wt1.png",
             "folder": "",
             "original_filename": "1703492220331-437118580_spider",
-            "api_key": "436838568172322"
+            "api_key": ""
         }
 </pre> 
 
