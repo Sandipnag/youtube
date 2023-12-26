@@ -3,7 +3,20 @@ import { uploadFileCloudinary } from "../utils/Cloudinary.js";
 import { errorHandler } from "../utils/Error.js";
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { deleteAllfiles } from "../utils/FileHelper.js";
+import jwt from 'jsonwebtoken';
 
+const generateRefeshAccessToken = async (userId) => {
+    try {
+        const user = await User.findById(userId);
+        let accessToken = user.generateAccessToken();
+        let refreshToken = user.generateRefreshToken();
+        user.refreshToken = refreshToken;
+        await user.save({ validateBeforeSave: false })
+        return { accessToken, refreshToken }
+    } catch (error) {
+        return errorHandler(500, 'Something went wrong', error)
+    }
+}
 
 const registerUser = async (req, res, next) => {
     try {
@@ -67,13 +80,13 @@ const login = async (req, res, next) => {
             let passwordMatchStatus = await user.isPasswordCorrect(req.body.password)
             if (!passwordMatchStatus) return next(errorHandler(200, "Wrong credentials"));
             let accessToken = user.generateAccessToken();
-            let refreshToken = user.generatrRefreshToken();
+            let refreshToken = user.generateRefreshToken();
             user.refreshToken = refreshToken;
             const options = {
                 httpOnly: true,
                 secure: true
             }
-            user.save({ validateBeforeSave: false })
+            await user.save({ validateBeforeSave: false })
             res
                 .status(200)
                 .cookie('accessToken', accessToken, options)
@@ -88,4 +101,30 @@ const login = async (req, res, next) => {
     }
 }
 
-export { registerUser, login }
+const refreshAccessToken = async (req, res, next) => {
+    // find data from users collection by user id and refresh token
+    // if data found then generate a new access token and send it to user
+    // if no data ound then log out the user
+
+    let incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+    if (!incomingRefreshToken) return next(errorHandler(401, "Unauthorised request!"))
+    const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
+    const user = await User.findById(decodedToken.id)
+    if (!user) return next(errorHandler(401, "Unauthorised request!"))
+    if (user.refreshToken == incomingRefreshToken) {
+        let { accessToken, refreshToken } = await generateRefeshAccessToken(decodedToken.id);
+        const options = {
+            httpOnly: true,
+            secure: true
+        }
+        res
+            .status(200)
+            .cookie('accessToken', accessToken, options)
+            .cookie('refreshToken', refreshToken, options)
+            .json(ApiResponse(200, "Access token generated.", { userDetails: user, accessToken }))
+    } else {
+        return next(errorHandler(401, "Unauthorised request!"))
+    }
+}
+
+export { registerUser, login, refreshAccessToken }

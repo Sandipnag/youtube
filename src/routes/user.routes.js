@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { login, registerUser } from '../controllers/user.controller.js';
+import { login, refreshAccessToken, registerUser } from '../controllers/user.controller.js';
 import validatorMiddleware from '../middlewares/validator.middleware.js';
 import { upload } from '../middlewares/multer.middleware.js';
 
@@ -28,6 +28,9 @@ router.route("/register").post(upload.fields([
         maxCount: 1
     },
 ]), validatorMiddleware('userAuthSchema'), registerUser);
+
 router.route("/login").post(validatorMiddleware('loginSchema'), login);
+
+router.route("/refreshAccessToken").post(refreshAccessToken);
 
 export default router;
