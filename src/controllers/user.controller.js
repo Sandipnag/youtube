@@ -127,4 +127,22 @@ const refreshAccessToken = async (req, res, next) => {
     }
 }
 
-export { registerUser, login, refreshAccessToken }
+const changeUserPassword = async (req,res,next)=> {
+    // take old password, new password, confirm password
+    // get token from access token from cookie or body
+    // if token mismatch then say unauthenticated user
+    // get user details from token
+    // check from user details user old passowrd and old password from request body is matching or not
+    // if dont match return wrong old password
+    // if match then update new password with encryption
+    const {oldPassword,newPassword,confirmPassword} = req.body;
+    const {user} = req;
+    if(newPassword!=confirmPassword) return(next(errorHandler(400,"Password and Confirm password doesn't match.")));
+    let isOldPasswordValid = await user.isPasswordCorrect(oldPassword);
+    if(!isOldPasswordValid) return(next(errorHandler(400,"Old password doesn't match.")));
+    user.password = newPassword;
+    await user.save({validateBeforeSave:false})
+    res.status(200).json(200, "password has changed successfully.");
+}
+
+export { registerUser, login, refreshAccessToken, changeUserPassword }
