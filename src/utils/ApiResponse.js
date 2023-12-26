@@ -1,7 +1,7 @@
-class ApiResponse {
-    constructor(statusCode,message="success",data){
-        this.statusCode = statusCode;
-        this.message = message;
-        this.data = data
-    }
+export const ApiResponse = (statusCode, message, data) => {
+    const response = {}
+    response.statusCode = statusCode;
+    response.message = message;
+    response.data = data
+    return response
 }
