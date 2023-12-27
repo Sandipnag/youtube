@@ -4,6 +4,7 @@ import { errorHandler } from "../utils/Error.js";
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { deleteAllfiles } from "../utils/FileHelper.js";
 import jwt from 'jsonwebtoken';
+import { STATUS_CODES } from "../utils/StatusCodes.js";
 
 const generateRefeshAccessToken = async (userId) => {
     try {
@@ -14,7 +15,7 @@ const generateRefeshAccessToken = async (userId) => {
         await user.save({ validateBeforeSave: false })
         return { accessToken, refreshToken }
     } catch (error) {
-        return errorHandler(500, 'Something went wrong', error)
+        return errorHandler(STATUS_CODES.server.internal_server_error, 'Something went wrong', error)
     }
 }
 
@@ -28,23 +29,23 @@ const registerUser = async (req, res, next) => {
 
         if (existedUser) {
             deleteAllfiles();
-            return next(errorHandler(401, `User already exists with this email ${email} or userName ${userName}`));
+            return next(errorHandler(STATUS_CODES.client.bad_request, `User already exists with this email ${email} or userName ${userName}`));
         } else {
-            if (!req.files?.avatar) return next(errorHandler(401, 'avatar filed is required!'));
+            if (!req.files?.avatar) return next(errorHandler(STATUS_CODES.client.bad_request, 'avatar filed is required!'));
             const avatarLocalPath = req.files?.avatar[0]?.path;
-            if (!avatarLocalPath) return next(errorHandler(401, 'avatar image path required!'));
+            if (!avatarLocalPath) return next(errorHandler(STATUS_CODES.client.bad_request, 'avatar image path required!'));
             let { url: avatarUrl } = await uploadFileCloudinary(avatarLocalPath);
-            if (!avatarUrl) return next(errorHandler(401, 'Avatar file upload issue occurs'));
+            if (!avatarUrl) return next(errorHandler(STATUS_CODES.client.bad_request, 'Avatar file upload issue occurs'));
             let coverImageUrl = ""
             if (req.files?.coverImage) {
                 if (Array.isArray(req.files?.coverImage)) {
                     const coverLocalPath = req.files?.coverImage[0]?.path;
-                    if (!coverLocalPath) return next(errorHandler(500, 'cover image path required!'));
+                    if (!coverLocalPath) return next(errorHandler(STATUS_CODES.server.internal_server_error, 'cover image path required!'));
                     let { url } = await uploadFileCloudinary(coverLocalPath);
                     coverImageUrl = url;
-                    if (!coverImageUrl) return next(errorHandler(401, 'Cover image upload issue occurs'));
+                    if (!coverImageUrl) return next(errorHandler(STATUS_CODES.client.bad_request, 'Cover image upload issue occurs'));
                 } else {
-                    return next(errorHandler(500, 'Cover image file processing issue!'));
+                    return next(errorHandler(STATUS_CODES.server.internal_server_error, 'Cover image file processing issue!'));
                 }
             }
 
@@ -59,12 +60,12 @@ const registerUser = async (req, res, next) => {
 
             const createdUser = await User.findById(user._id).select("-password -refreshToken");
             if (!createdUser) {
-                return next(errorHandler(500, "Something went wrong while registering the user."))
+                return next(errorHandler(STATUS_CODES.server.internal_server_error, "Something went wrong while registering the user."))
             }
             return res.status(201).json(ApiResponse(200, 'User created successsfully!', createdUser))
         }
     } catch (error) {
-        return next(errorHandler(500, error.message));
+        return next(errorHandler(STATUS_CODES.server.internal_server_error, error.message));
     }
 
 
@@ -97,7 +98,7 @@ const login = async (req, res, next) => {
         }
 
     } catch (error) {
-        return next(errorHandler(500, 'Something went wrong', error))
+        return next(errorHandler(STATUS_CODES.server.internal_server_error, 'Something went wrong', error))
     }
 }
 
@@ -107,10 +108,10 @@ const refreshAccessToken = async (req, res, next) => {
     // if no data ound then log out the user
 
     let incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
-    if (!incomingRefreshToken) return next(errorHandler(401, "Unauthorised request!"))
+    if (!incomingRefreshToken) return next(errorHandler(STATUS_CODES.client.bad_request, "Unauthorised request!"))
     const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
     const user = await User.findById(decodedToken.id)
-    if (!user) return next(errorHandler(401, "Unauthorised request!"))
+    if (!user) return next(errorHandler(STATUS_CODES.client.bad_request, "Unauthorised request!"))
     if (user.refreshToken == incomingRefreshToken) {
         let { accessToken, refreshToken } = await generateRefeshAccessToken(decodedToken.id);
         const options = {
@@ -123,16 +124,16 @@ const refreshAccessToken = async (req, res, next) => {
             .cookie('refreshToken', refreshToken, options)
             .json(ApiResponse(200, "Access token generated.", { userDetails: user, accessToken }))
     } else {
-        return next(errorHandler(401, "Unauthorised request!"))
+        return next(errorHandler(STATUS_CODES.client.bad_request, "Unauthorised request!"))
     }
 }
 
 const changeUserPassword = async (req,res,next)=> {
     const {oldPassword,newPassword,confirmPassword} = req.body;
     const {user} = req;
-    if(newPassword!=confirmPassword) return(next(errorHandler(400,"Password and Confirm password doesn't match.")));
+    if(newPassword!=confirmPassword) return(next(errorHandler(STATUS_CODES.client.bad_request,"Password and Confirm password doesn't match.")));
     let isOldPasswordValid = await user.isPasswordCorrect(oldPassword);
-    if(!isOldPasswordValid) return(next(errorHandler(400,"Old password doesn't match.")));
+    if(!isOldPasswordValid) return(next(errorHandler(STATUS_CODES.client.bad_request,"Old password doesn't match.")));
     user.password = newPassword;
     await user.save({validateBeforeSave:false})
     res.status(200).json(ApiResponse(200,"password has changed successfully."));
