@@ -103,10 +103,6 @@ const login = async (req, res, next) => {
 }
 
 const refreshAccessToken = async (req, res, next) => {
-    // find data from users collection by user id and refresh token
-    // if data found then generate a new access token and send it to user
-    // if no data ound then log out the user
-
     let incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
     if (!incomingRefreshToken) return next(errorHandler(STATUS_CODES.client.bad_request, "Unauthorised request!"))
     const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
@@ -139,4 +135,21 @@ const changeUserPassword = async (req,res,next)=> {
     res.status(200).json(ApiResponse(200,"password has changed successfully."));
 }
 
-export { registerUser, login, refreshAccessToken, changeUserPassword }
+const updateUserDetails = async (req,res,next) => {
+   try {
+    const {user} = req;
+    const {fullName,email} = req.body;
+    
+    if(!(fullName || email)) return next(errorHandler(STATUS_CODES.client.bad_request,`Please provide Full name or Email`))
+     const updatedUser = await User.findByIdAndUpdate(user?._id,{
+         $set:{
+             fullName,email
+         }
+     },{new:true}).select("-password")
+     return res.status(STATUS_CODES.success.ok).json(ApiResponse(STATUS_CODES.success.ok,"User details updated successfully.",updatedUser))
+   } catch (error) {
+    return next(errorHandler(STATUS_CODES.server.internal_server_error,error.message))
+   }
+}
+
+export { registerUser, login, refreshAccessToken, changeUserPassword, updateUserDetails }
